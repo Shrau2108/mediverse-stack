@@ -9,24 +9,57 @@ import {
   Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Header } from "./Header";
+import { useRole, UserRole } from "@/contexts/RoleContext";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Patients", href: "/patients", icon: Users },
-  { name: "Appointments", href: "/appointments", icon: Calendar },
-  { name: "Staff", href: "/staff", icon: UserRound },
-  { name: "Reports", href: "/reports", icon: Activity },
-];
+const navigationByRole: Record<UserRole, { name: string; href: string; icon: any }[]> = {
+  Admin: [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Patients", href: "/patients", icon: Users },
+    { name: "Appointments", href: "/appointments", icon: Calendar },
+    { name: "Staff", href: "/staff", icon: UserRound },
+    { name: "Reports", href: "/reports", icon: Activity },
+  ],
+  Doctor: [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Patients", href: "/patients", icon: Users },
+    { name: "Appointments", href: "/appointments", icon: Calendar },
+  ],
+  Nurse: [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Patients", href: "/patients", icon: Users },
+    { name: "Appointments", href: "/appointments", icon: Calendar },
+  ],
+  Chemist: [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Patients", href: "/patients", icon: Users },
+  ],
+  Attendant: [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Patients", href: "/patients", icon: Users },
+  ],
+  "Lab Technician": [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Patients", href: "/patients", icon: Users },
+  ],
+  Patient: [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Appointments", href: "/appointments", icon: Calendar },
+  ],
+};
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { currentRole } = useRole();
+  const navigation = navigationByRole[currentRole];
 
   return (
     <div className="min-h-screen bg-background">
+      <Header />
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border">
         <div className="flex h-full flex-col">
