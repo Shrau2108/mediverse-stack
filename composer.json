@@ -1,0 +1,21 @@
+{
+  "name": "mediverse/hms-backend",
+  "description": "Hospital Management System backend (PHP 8+, PDO, REST)",
+  "type": "project",
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "./"
+    }
+  },
+  "scripts": {
+    "post-autoload-dump": [
+      "@php -r \"file_exists('public/.htaccess') || copy('public/.htaccess.example','public/.htaccess');\""
+    ]
+  }
+}
+
+
+

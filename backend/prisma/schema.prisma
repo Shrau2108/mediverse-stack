@@ -1,0 +1,310 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Patient Entity
+model Patient {
+  Patient_ID    String    @id @default(uuid())
+  Name          String
+  DOB           DateTime
+  Gender        String
+  Address       String?
+  BMI           Float?
+  Blood_grp     String?
+  Disease       String?
+  Email         String?   @unique
+  Phone         String?
+  Weight        Float?
+  Height        Float?
+  Patient_Type  String    // "In-Patient" or "Out-Patient"
+  Status        String    @default("Active") // "Active", "Discharged", "Emergency", "Critical"
+  CreatedAt     DateTime  @default(now())
+  UpdatedAt     DateTime  @updatedAt
+
+  // Relationships
+  Dr_ID                String?
+  Doctor                Doctor?                 @relation(fields: [Dr_ID], references: [Doctor_ID], onDelete: SetNull)
+  Treatments            Treatment[]
+  LabReports            LabReport[]
+  Bills                 Bill[]
+  Accommodations        Accommodation[]
+  Prescriptions         Prescription[]
+  Healthcare            Healthcare[]
+  Examine               Examine[]
+  Decide                Decide[]
+
+  @@map("patients")
+}
+
+// Doctor Entity
+model Doctor {
+  Doctor_ID      String   @id @default(uuid())
+  Name           String
+  Degree         String
+  Specialty      String
+  Contact_No     String?
+  Date_of_Joining DateTime @default(now())
+  Work_Experience Int      @default(0)
+  Email          String?  @unique
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Patients       Patient[]
+  Treatments     Treatment[]
+  Prescriptions  Prescription[]
+  Healthcare     Healthcare[]
+  Examine        Examine[]
+  Decide         Decide[]
+
+  @@map("doctors")
+}
+
+// Nurse Entity
+model Nurse {
+  Nurse_ID       String   @id @default(uuid())
+  Name           String
+  Specialty      String?
+  Work_Experience Int      @default(0)
+  Gender         String?
+  Age            Int?
+  DOB            DateTime?
+  Contact_No     String?
+  Email          String?  @unique
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Healthcare     Healthcare[]
+
+  @@map("nurses")
+}
+
+// Chemist Entity
+model Chemist {
+  Shop_ID        String   @id @default(uuid())
+  Name           String
+  Phone_No       String?
+  Email          String?  @unique
+  Address        String?
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Prescriptions  Prescription[]
+  Charges        Charges[]
+
+  @@map("chemists")
+}
+
+// Room Entity
+model Room {
+  Room_No        String   @id
+  Room_Type      String   // "Normal", "Emergency", "Critical", "ICU", "General"
+  Status         String   @default("Available") // "Available", "Occupied", "Maintenance"
+  Floor          Int?
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Accommodations Accommodation[]
+
+  @@map("rooms")
+}
+
+// Bill Entity
+model Bill {
+  Bill_ID        String   @id @default(uuid())
+  Patient_ID     String
+  Patient_Type   String   // "In-Patient" or "Out-Patient"
+  Health_Card    String?
+  Amount         Float
+  Status         String   @default("Pending") // "Pending", "Paid", "Partial"
+  Payment_Method String?  // "Cash", "Card", "Online", "Insurance"
+  Payment_Date   DateTime?
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Patient        Patient  @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+  Charges        Charges[]
+
+  @@map("bills")
+}
+
+// Lab Report Entity
+model LabReport {
+  Lab_No         String   @id @default(uuid())
+  Patient_ID     String
+  Date           DateTime @default(now())
+  Category       String   // "Blood", "Urine", "X-Ray", "CT Scan", "MRI", etc.
+  Test_Name      String
+  Result         String?
+  Report_File    String?  // URL or path to uploaded file
+  Amount         Float
+  Status         String   @default("Pending") // "Pending", "In Progress", "Completed"
+  Doctor_Notes   String?
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Patient        Patient  @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+  Examine        Examine[]
+
+  @@map("lab_reports")
+}
+
+// Treatment Entity (M:N between Doctor and Patient)
+model Treatment {
+  Treatment_ID   String   @id @default(uuid())
+  Doctor_ID      String
+  Patient_ID     String
+  Diagnosis      String?
+  Prescription_Notes String?
+  Treatment_Date DateTime @default(now())
+  Discharge_Date DateTime?
+  Status         String   @default("Active") // "Active", "Completed", "Discharged"
+  Follow_Up_Date DateTime?
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  // Relationships
+  Doctor         Doctor   @relation(fields: [Doctor_ID], references: [Doctor_ID], onDelete: Cascade)
+  Patient        Patient  @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+
+  @@unique([Doctor_ID, Patient_ID, Treatment_Date])
+  @@map("treatments")
+}
+
+// Accommodation Entity (M:N between Patient and Room)
+model Accommodation {
+  Accommodation_ID String @id @default(uuid())
+  Patient_ID       String
+  Room_No          String
+  Check_In_Date    DateTime @default(now())
+  Check_Out_Date   DateTime?
+  Daily_Rate       Float
+  Status           String @default("Active") // "Active", "Checked Out"
+  CreatedAt        DateTime @default(now())
+  UpdatedAt        DateTime @updatedAt
+
+  // Relationships
+  Patient          Patient @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+  Room             Room    @relation(fields: [Room_No], references: [Room_No], onDelete: Restrict)
+
+  @@map("accommodations")
+}
+
+// Healthcare Entity (M:N between Doctor, Patient, and Nurse)
+model Healthcare {
+  Healthcare_ID  String   @id @default(uuid())
+  Doctor_ID     String
+  Patient_ID    String
+  Nurse_ID      String?
+  Date          DateTime @default(now())
+  Notes         String?
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  // Relationships
+  Doctor         Doctor   @relation(fields: [Doctor_ID], references: [Doctor_ID], onDelete: Cascade)
+  Patient        Patient  @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+  Nurse          Nurse?   @relation(fields: [Nurse_ID], references: [Nurse_ID], onDelete: SetNull)
+
+  @@map("healthcare")
+}
+
+// Examine Entity (M:N between Doctor and LabReport)
+model Examine {
+  Examine_ID    String   @id @default(uuid())
+  Doctor_ID     String
+  Lab_No        String
+  Patient_ID    String
+  Request_Date  DateTime @default(now())
+  Status        String   @default("Requested") // "Requested", "In Progress", "Completed", "Reviewed"
+  Notes         String?
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  // Relationships
+  Doctor         Doctor    @relation(fields: [Doctor_ID], references: [Doctor_ID], onDelete: Cascade)
+  LabReport      LabReport @relation(fields: [Lab_No], references: [Lab_No], onDelete: Cascade)
+  Patient        Patient   @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+
+  @@unique([Doctor_ID, Lab_No])
+  @@map("examine")
+}
+
+// Decide Entity (M:N between Doctor and Patient for decision making)
+model Decide {
+  Decide_ID     String   @id @default(uuid())
+  Doctor_ID     String
+  Patient_ID    String
+  Decision_Type String   // "Discharge", "Admit", "Refer", "Emergency", etc.
+  Decision_Date DateTime @default(now())
+  Notes         String?
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  // Relationships
+  Doctor         Doctor   @relation(fields: [Doctor_ID], references: [Doctor_ID], onDelete: Cascade)
+  Patient        Patient  @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+
+  @@map("decide")
+}
+
+// Charges Entity (M:N between Bill and Chemist)
+model Charges {
+  Charge_ID     String   @id @default(uuid())
+  Bill_ID       String
+  Shop_ID       String?
+  Charge_Type   String   // "Medicine", "Treatment", "Room", "Lab Test", "Consultation"
+  Description   String?
+  Amount        Float
+  Quantity      Int      @default(1)
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  // Relationships
+  Bill          Bill     @relation(fields: [Bill_ID], references: [Bill_ID], onDelete: Cascade)
+  Chemist       Chemist? @relation(fields: [Shop_ID], references: [Shop_ID], onDelete: SetNull)
+
+  @@map("charges")
+}
+
+// Prescription Entity (M:N between Doctor, Patient, and Chemist)
+model Prescription {
+  Prescription_ID String @id @default(uuid())
+  Doctor_ID       String
+  Patient_ID      String
+  Shop_ID         String?
+  Medicine_Name   String
+  Dosage          String
+  Frequency       String
+  Duration        String
+  Quantity        Int
+  Status          String  @default("Pending") // "Pending", "Dispensed", "Completed"
+  Dispensed_Date  DateTime?
+  CreatedAt       DateTime @default(now())
+  UpdatedAt       DateTime @updatedAt
+
+  // Relationships
+  Doctor          Doctor  @relation(fields: [Doctor_ID], references: [Doctor_ID], onDelete: Cascade)
+  Patient         Patient @relation(fields: [Patient_ID], references: [Patient_ID], onDelete: Cascade)
+  Chemist         Chemist? @relation(fields: [Shop_ID], references: [Shop_ID], onDelete: SetNull)
+
+  @@map("prescriptions")
+}
+
+
+
+
+

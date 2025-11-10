@@ -1,73 +1,214 @@
-# Welcome to your Lovable project
+# Mediverse - Hospital Management System (HMS)
 
-## Project info
+A full-stack, enterprise-grade Hospital Management System built with React, Node.js, Express, and PostgreSQL.
 
-**URL**: https://lovable.dev/projects/cd37855c-9fe6-4d74-917a-d9ccf2caef34
+## 🏗️ Architecture
 
-## How can I edit this code?
+- **Frontend**: React + Vite + TypeScript
+- **UI**: TailwindCSS + ShadCN/UI + Framer Motion
+- **Backend**: Node.js + Express + TypeScript
+- **Database**: PostgreSQL with Prisma ORM
+- **Real-time**: Socket.IO
+- **State Management**: TanStack Query (React Query)
 
-There are several ways of editing your application.
+## 🚀 Features
 
-**Use Lovable**
+### Role-Based Dashboards
+- **Admin Dashboard**: Complete hospital overview, analytics, and management
+- **Doctor Dashboard**: Patient management, prescriptions, lab tests, treatments
+- **Nurse Dashboard**: Patient care, medication tracking, vital logs
+- **Chemist Dashboard**: Prescription management, inventory, stock tracking
+- **Attendant Dashboard**: Patient registration, room assignment, billing
+- **Lab Technician Dashboard**: Lab test management, report uploads
+- **Patient Dashboard**: Health records, appointments, prescriptions, lab results
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/cd37855c-9fe6-4d74-917a-d9ccf2caef34) and start prompting.
+### Core Modules
+- ✅ Patient Management (Registration, Demographics, Medical History)
+- ✅ Doctor & Staff Management
+- ✅ Room & Accommodation Management
+- ✅ Treatment & Healthcare Records
+- ✅ Prescription Management
+- ✅ Lab Reports & Test Management
+- ✅ Billing & Charges
+- ✅ Real-time Updates via Socket.IO
+- ✅ Analytics & Reporting
 
-Changes made via Lovable will be committed automatically to this repo.
+## 📋 Prerequisites
 
-**Use your preferred IDE**
+- Node.js 18+ 
+- PostgreSQL 14+
+- npm or yarn
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd mediverse-stack
+```
 
-Follow these steps:
+### 2. Backend Setup
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+```bash
+cd backend
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Create .env file
+cp .env.example .env
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Update DATABASE_URL in .env
+DATABASE_URL="postgresql://user:password@localhost:5432/mediverse?schema=public"
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Run migrations
+npx prisma migrate dev
+
+# Generate Prisma Client
+npx prisma generate
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The backend will run on `http://localhost:5000`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 3. Frontend Setup
 
-**Use GitHub Codespaces**
+```bash
+# From root directory
+npm install
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Create .env file
+cp .env.example .env
 
-## What technologies are used for this project?
+# Start development server
+npm run dev
+```
 
-This project is built with:
+The frontend will run on `http://localhost:5173`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📁 Project Structure
 
-## How can I deploy this project?
+```
+mediverse-stack/
+├── backend/
+│   ├── src/
+│   │   ├── routes/        # API routes
+│   │   ├── lib/          # Utilities (Prisma client)
+│   │   ├── utils/        # Helper functions
+│   │   └── index.ts      # Express server
+│   ├── prisma/
+│   │   └── schema.prisma # Database schema
+│   └── package.json
+├── src/
+│   ├── pages/           # Page components
+│   ├── components/     # Reusable components
+│   ├── contexts/       # React contexts (RoleContext)
+│   ├── lib/            # API client, utilities
+│   └── App.tsx
+└── package.json
+```
 
-Simply open [Lovable](https://lovable.dev/projects/cd37855c-9fe6-4d74-917a-d9ccf2caef34) and click on Share -> Publish.
+## 🗄️ Database Schema
 
-## Can I connect a custom domain to my Lovable project?
+The system implements a comprehensive ER diagram with:
 
-Yes, you can!
+- **Entities**: Patient, Doctor, Nurse, Chemist, Room, Bill, LabReport, Treatment, Accommodation
+- **Relationships**: 1:1, 1:M, M:N mappings between entities
+- **Associative Entities**: Healthcare, Examine, Decide, Charges, Prescription
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+See `backend/prisma/schema.prisma` for the complete schema.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🔌 API Endpoints
+
+### Patients
+- `GET /api/patients` - Get all patients
+- `GET /api/patients/:id` - Get patient by ID
+- `POST /api/patients` - Create new patient
+- `PUT /api/patients/:id` - Update patient
+- `DELETE /api/patients/:id` - Delete patient
+
+### Doctors
+- `GET /api/doctors` - Get all doctors
+- `GET /api/doctors/:id` - Get doctor by ID
+- `GET /api/doctors/:id/patients` - Get doctor's patients
+- `POST /api/doctors` - Create doctor
+
+### Prescriptions
+- `GET /api/prescriptions` - Get all prescriptions
+- `POST /api/prescriptions` - Create prescription
+- `PUT /api/prescriptions/:id` - Update prescription
+
+### Lab Reports
+- `GET /api/lab-reports` - Get all lab reports
+- `GET /api/lab-reports/pending/all` - Get pending tests
+- `POST /api/lab-reports` - Create lab test request
+- `PUT /api/lab-reports/:id` - Update lab report
+
+### And many more...
+
+## 🔄 Real-time Updates
+
+The system uses Socket.IO for real-time updates:
+- Patient status changes
+- Prescription updates
+- Lab report completions
+- Room assignments
+- Bill updates
+
+## 🧪 Testing
+
+```bash
+# Backend tests
+cd backend
+npm test
+
+# Frontend tests
+npm test
+```
+
+## 🐳 Docker Deployment
+
+```bash
+# Build backend image
+cd backend
+docker build -t mediverse-backend .
+
+# Run with docker-compose (if available)
+docker-compose up
+```
+
+## 📊 Environment Variables
+
+### Frontend (.env)
+```
+VITE_API_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+### Backend (.env)
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/mediverse
+JWT_SECRET=your-secret-key
+PORT=5000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+```
+
+## 🎨 UI Features
+
+- **Role Switcher**: Dynamic role switching in header navbar
+- **Animated Transitions**: Framer Motion for smooth role changes
+- **Responsive Design**: Mobile-first, works on all devices
+- **Modern UI**: ShadCN/UI components with TailwindCSS
+
+## 📝 License
+
+MIT License
+
+## 👥 Contributors
+
+Built for SIES Hackathon 2025
+
+---
+
+**Note**: This is a comprehensive HMS system. Make sure PostgreSQL is running and properly configured before starting the backend server.
