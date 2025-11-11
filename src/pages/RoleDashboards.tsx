@@ -1,43 +1,26 @@
-import { UserRole } from "@/contexts/RoleContext";
+import { motion } from "framer-motion";
 import { StatCard } from "@/components/StatCard";
+import {
+  Users,
+  Stethoscope,
+  Activity,
+  DollarSign,
+  Calendar,
+  Pill,
+  FileText,
+  Bed,
+  AlertCircle,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  Calendar, 
-  Stethoscope, 
-  BedDouble,
-  ArrowRight,
-  Clock,
-  Pill,
-  FlaskConical,
-  ClipboardList,
-  Heart,
-  Activity,
-  TrendingUp,
-  DollarSign,
-  FileText,
-  AlertCircle
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { useEffect } from "react";
-import { socketService } from "@/lib/socket";
+import { useHospitalData } from "@/hooks/useHospitalData";
+import { UserRole } from "@/contexts/RoleContext";
 
 interface DashboardContentProps {
   role: UserRole;
 }
 
 export function RoleDashboardContent({ role }: DashboardContentProps) {
-  useEffect(() => {
-    socketService.connect();
-    return () => {
-      socketService.disconnect();
-    };
-  }, []);
-
   return (
     <>
       {role === "Admin" && <AdminDashboard />}
@@ -51,31 +34,13 @@ export function RoleDashboardContent({ role }: DashboardContentProps) {
   );
 }
 
-function AdminDashboard() {
-  const { data: analytics, isLoading } = useQuery({
-    queryKey: ['analytics', 'overview'],
-    queryFn: () => api.analytics.getOverview(),
-    refetchInterval: 30000,
-  });
-
-  const { data: revenue } = useQuery({
-    queryKey: ['analytics', 'revenue'],
-    queryFn: () => api.analytics.getRevenue(),
-  });
-
-  useEffect(() => {
-    const socket = socketService.connect();
-    socketService.joinRoom('admin:all');
-    return () => {
-      socketService.leaveRoom('admin:all');
-    };
-  }, []);
-
-  if (isLoading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
-
-  const occupancyRate = analytics?.rooms?.occupancyRate || 0;
+// Admin Dashboard Component
+export const AdminDashboard = () => {
+  const { patients, doctors, rooms, bills, labReports, accommodations, prescriptions, treatments } = useHospitalData();
+  
+  const todayAppointments = treatments.filter(t => t.status === 'Active').length;
+  const totalRevenue = bills.reduce((sum, bill) => sum + Number(bill.amount), 0);
+  const activeAccommodations = accommodations.filter(a => a.status === 'Active').length;
 
   return (
     <motion.div
@@ -90,119 +55,120 @@ function AdminDashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Total Patients" 
-          value={analytics?.patients?.total?.toLocaleString() || "0"} 
-          change={`${analytics?.patients?.active || 0} active`} 
-          icon={Users} 
+        <StatCard
+          title="Available Rooms"
+          value={rooms.filter((r) => r.status === "Available").length}
+          icon={Bed}
+          change="Ready for admission"
         />
-        <StatCard 
-          title="Today's Appointments" 
-          value={analytics?.todayAppointments?.toLocaleString() || "0"} 
-          change="Treatment sessions today" 
-          icon={Calendar} 
+        <StatCard
+          title="Total Patients"
+          value={patients.length}
+          icon={Users}
+          change={`${patients.filter((p) => p.status === "Critical").length} critical`}
         />
-        <StatCard 
-          title="Doctors" 
-          value={analytics?.staff?.doctors?.toLocaleString() || "0"} 
-          change={`${analytics?.staff?.nurses || 0} nurses`} 
-          icon={Stethoscope} 
+        <StatCard
+          title="Today's Appointments"
+          value={todayAppointments}
+          icon={Calendar}
+          change="Scheduled"
         />
-        <StatCard 
-          title="Room Occupancy" 
-          value={`${analytics?.rooms?.occupied || 0}/${analytics?.rooms?.total || 0}`} 
-          change={`${occupancyRate.toFixed(1)}% occupied`} 
-          icon={BedDouble} 
-          trend={occupancyRate > 80 ? "up" : undefined}
+        <StatCard
+          title="Staff on Duty"
+          value={doctors.length}
+          icon={Stethoscope}
+          change={`${doctors.length} doctors`}
         />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Pending Bills" 
-          value={analytics?.bills?.pending?.toLocaleString() || "0"} 
-          change={`${analytics?.bills?.paid || 0} paid`} 
-          icon={DollarSign} 
+        <StatCard
+          title="Pending Bills"
+          value={bills.filter((b) => b.status === "Pending").length}
+          icon={DollarSign}
+          change={`Total: $${bills.reduce((sum, b) => sum + Number(b.amount), 0).toLocaleString()}`}
         />
-        <StatCard 
-          title="Pending Prescriptions" 
-          value={analytics?.prescriptions?.pending?.toLocaleString() || "0"} 
-          change="Awaiting dispense" 
-          icon={Pill} 
+        <StatCard
+          title="Prescriptions"
+          value={prescriptions.length}
+          icon={Pill}
+          change="Active prescriptions"
         />
-        <StatCard 
-          title="Lab Tests Pending" 
-          value={analytics?.labTests?.pending?.toLocaleString() || "0"} 
-          change="In progress" 
-          icon={FlaskConical} 
+        <StatCard
+          title="Lab Tests"
+          value={labReports.length}
+          icon={FileText}
+          change="Pending results"
         />
-        <StatCard 
-          title="Active Accommodations" 
-          value={analytics?.activeAccommodations?.toLocaleString() || "0"} 
-          change="Current in-patients" 
-          icon={BedDouble} 
+        <StatCard
+          title="Accommodations"
+          value={activeAccommodations}
+          icon={Bed}
+          change="Active accommodations"
         />
       </div>
 
-      {revenue && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              ₹{revenue.totalRevenue?.toLocaleString() || "0"}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              From {revenue.totalBills || 0} paid bills
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Bills</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4">Patient</th>
+                <th className="text-left py-3 px-4">Amount</th>
+                <th className="text-left py-3 px-4">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bills.slice(0, 5).map((bill) => (
+                <tr key={bill.id} className="border-b border-border">
+                  <td className="py-3 px-4">Patient {bill.patient_id.slice(0, 8)}</td>
+                  <td className="py-3 px-4">${Number(bill.amount).toLocaleString()}</td>
+                  <td className="py-3 px-4">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        bill.status === "Paid"
+                          ? "bg-green-500/20 text-green-500"
+                          : "bg-yellow-500/20 text-yellow-500"
+                      }`}
+                    >
+                      {bill.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <StatCard
+              title="Total Revenue"
+              value={`$${totalRevenue.toLocaleString()}`}
+              icon={DollarSign}
+              change="This month"
+            />
+            <StatCard
+              title="Total Bills"
+              value={bills.length}
+              icon={FileText}
+              change="Processed this month"
+            />
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
 
-function DoctorDashboard() {
-  // For demo, using first doctor - in production, use authenticated user's ID
-  const { data: doctors } = useQuery({
-    queryKey: ['doctors'],
-    queryFn: () => api.doctors.getAll(),
-  });
-
-  const doctorId = doctors?.[0]?.Doctor_ID;
-
-  const { data: patients, isLoading } = useQuery({
-    queryKey: ['doctors', doctorId, 'patients'],
-    queryFn: () => doctorId ? api.doctors.getPatients(doctorId) : Promise.resolve([]),
-    enabled: !!doctorId,
-  });
-
-  const { data: treatments } = useQuery({
-    queryKey: ['treatments', 'doctor', doctorId],
-    queryFn: () => doctorId ? api.treatments.getAll({ doctorId, status: 'Active' }) : Promise.resolve([]),
-    enabled: !!doctorId,
-  });
-
-  const { data: prescriptions } = useQuery({
-    queryKey: ['prescriptions', 'doctor', doctorId],
-    queryFn: () => doctorId ? api.prescriptions.getAll({ doctorId, status: 'Pending' }) : Promise.resolve([]),
-    enabled: !!doctorId,
-  });
-
-  useEffect(() => {
-    if (doctorId) {
-      const socket = socketService.connect();
-      socketService.joinRoom(`doctor:${doctorId}`);
-      return () => {
-        socketService.leaveRoom(`doctor:${doctorId}`);
-      };
-    }
-  }, [doctorId]);
-
-  if (isLoading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
+// Doctor Dashboard Component
+export const DoctorDashboard = () => {
+  const { patients, treatments, labReports, prescriptions } = useHospitalData();
 
   return (
     <motion.div
@@ -216,89 +182,75 @@ function DoctorDashboard() {
         <p className="text-muted-foreground">Your patients and appointments today</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <StatCard 
-          title="Assigned Patients" 
-          value={patients?.length?.toLocaleString() || "0"} 
-          change="Active cases" 
-          icon={Users} 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="My Patients"
+          value={patients.length}
+          icon={Users}
+          change="Under your care"
         />
-        <StatCard 
-          title="Active Treatments" 
-          value={treatments?.length?.toLocaleString() || "0"} 
-          change="Ongoing care" 
-          icon={Stethoscope} 
+        <StatCard
+          title="Today's Appointments"
+          value={treatments.filter(t => t.status === 'Active').length}
+          icon={Calendar}
+          change="Scheduled consultations"
         />
-        <StatCard 
-          title="Pending Prescriptions" 
-          value={prescriptions?.length?.toLocaleString() || "0"} 
-          change="Awaiting dispense" 
-          icon={Pill} 
+        <StatCard
+          title="Lab Reports Pending"
+          value={labReports.filter(l => l.status === 'Pending').length}
+          icon={FileText}
+          change="Awaiting review"
+        />
+        <StatCard
+          title="Prescriptions Written"
+          value={prescriptions.length}
+          icon={Pill}
+          change="This month"
         />
       </div>
 
-      {patients && patients.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Patients</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {patients.slice(0, 5).map((patient: any) => (
-                <div key={patient.Patient_ID} className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <p className="font-medium">{patient.Name}</p>
-                    <p className="text-sm text-muted-foreground">{patient.Patient_Type} • {patient.Status}</p>
-                  </div>
-                  <Badge variant={patient.Status === 'Critical' ? 'destructive' : 'default'}>
-                    {patient.Status}
-                  </Badge>
-                </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Patients</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4">Name</th>
+                <th className="text-left py-3 px-4">Age</th>
+                <th className="text-left py-3 px-4">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patients.slice(0, 5).map((patient) => (
+                <tr key={patient.id} className="border-b border-border">
+                  <td className="py-3 px-4">{patient.name}</td>
+                  <td className="py-3 px-4">{new Date(patient.dob).getFullYear()}</td>
+                  <td className="py-3 px-4">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        patient.status === "Critical"
+                          ? "bg-red-500/20 text-red-500"
+                          : "bg-green-500/20 text-green-500"
+                      }`}
+                    >
+                      {patient.status}
+                    </span>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
 
-function NurseDashboard() {
-  const { data: nurses } = useQuery({
-    queryKey: ['nurses'],
-    queryFn: () => api.nurses.getAll(),
-  });
-
-  const nurseId = nurses?.[0]?.Nurse_ID;
-
-  const { data: patients, isLoading } = useQuery({
-    queryKey: ['nurses', nurseId, 'patients'],
-    queryFn: () => nurseId ? api.nurses.getPatients(nurseId) : Promise.resolve([]),
-    enabled: !!nurseId,
-  });
-
-  const { data: prescriptions } = useQuery({
-    queryKey: ['prescriptions', 'nurse'],
-    queryFn: () => api.prescriptions.getAll({ status: 'Pending' }),
-  });
-
-  useEffect(() => {
-    if (nurseId) {
-      const socket = socketService.connect();
-      socketService.joinRoom(`nurse:${nurseId}`);
-      return () => {
-        socketService.leaveRoom(`nurse:${nurseId}`);
-      };
-    }
-  }, [nurseId]);
-
-  if (isLoading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
-
-  const pendingPrescriptions = prescriptions?.filter((p: any) => 
-    patients?.some((pt: any) => pt.Patient_ID === p.Patient_ID)
-  ) || [];
+// Nurse Dashboard Component
+export const NurseDashboard = () => {
+  const { patients, treatments, prescriptions } = useHospitalData();
 
   return (
     <motion.div
@@ -312,80 +264,67 @@ function NurseDashboard() {
         <p className="text-muted-foreground">Patient care and ward management</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <StatCard 
-          title="Assigned Patients" 
-          value={patients?.length?.toLocaleString() || "0"} 
-          change="Under your care" 
-          icon={Users} 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Assigned Patients"
+          value={patients.filter((p) => p.status === 'Active').length}
+          icon={Users}
+          change="Currently under your care"
         />
-        <StatCard 
-          title="Medications Due" 
-          value={pendingPrescriptions.length.toLocaleString()} 
-          change="Pending dispense" 
-          icon={Pill} 
+        <StatCard
+          title="Medications Due"
+          value={prescriptions.filter(p => p.status === 'Pending').length}
+          icon={Pill}
+          change="In the next 2 hours"
         />
-        <StatCard 
-          title="Active Rooms" 
-          value={patients?.filter((p: any) => p.Accommodations?.length > 0)?.length?.toLocaleString() || "0"} 
-          change="Ward management" 
-          icon={BedDouble} 
+        <StatCard
+          title="Vitals to Check"
+          value={treatments.filter(t => t.status === 'Active').length}
+          icon={Activity}
+          change="Scheduled today"
+        />
+        <StatCard
+          title="Critical Patients"
+          value={patients.filter((p) => p.status === "Critical").length}
+          icon={AlertCircle}
+          change="Requires immediate attention"
         />
       </div>
 
-      {pendingPrescriptions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Medications</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingPrescriptions.slice(0, 5).map((prescription: any) => (
-              <div key={prescription.Prescription_ID} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{prescription.Patient?.Name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {prescription.Medicine_Name} • {prescription.Dosage}
-                    </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Critical Patients</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {patients.filter((p) => p.status === "Critical").length > 0 ? (
+            <div className="space-y-3">
+              {patients
+                .filter((p) => p.status === "Critical")
+                .slice(0, 5)
+                .map((patient) => (
+                  <div key={patient.id} className="flex items-center justify-between p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <div>
+                      <p className="font-medium">{patient.name}</p>
+                      <p className="text-sm text-muted-foreground">{patient.disease || "N/A"}</p>
+                    </div>
+                    <span className="px-2 py-1 bg-red-500/20 text-red-500 rounded-full text-xs font-medium">
+                      Critical
+                    </span>
                   </div>
-                  <Badge variant="outline">{prescription.Quantity} units</Badge>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+                ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No critical patients at the moment</p>
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
 
-function ChemistDashboard() {
-  const { data: chemists } = useQuery({
-    queryKey: ['chemists'],
-    queryFn: () => api.chemists.getAll(),
-  });
-
-  const chemistId = chemists?.[0]?.Shop_ID;
-
-  const { data: pendingPrescriptions, isLoading } = useQuery({
-    queryKey: ['chemists', chemistId, 'prescriptions', 'pending'],
-    queryFn: () => chemistId ? api.chemists.getPendingPrescriptions(chemistId) : Promise.resolve([]),
-    enabled: !!chemistId,
-  });
-
-  useEffect(() => {
-    if (chemistId) {
-      const socket = socketService.connect();
-      socketService.joinRoom(`chemist:${chemistId}`);
-      return () => {
-        socketService.leaveRoom(`chemist:${chemistId}`);
-      };
-    }
-  }, [chemistId]);
-
-  if (isLoading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
+// Chemist Dashboard Component
+export const ChemistDashboard = () => {
+  const { prescriptions } = useHospitalData();
 
   return (
     <motion.div
@@ -399,87 +338,69 @@ function ChemistDashboard() {
         <p className="text-muted-foreground">Pharmacy inventory and prescriptions</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <StatCard 
-          title="Pending Prescriptions" 
-          value={pendingPrescriptions?.length?.toLocaleString() || "0"} 
-          change="Awaiting dispense" 
-          icon={ClipboardList} 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Pending Prescriptions"
+          value={prescriptions.filter(p => p.status === 'Pending').length}
+          icon={Pill}
+          change="To be dispensed"
         />
-        <StatCard 
-          title="Total Prescriptions" 
-          value={(pendingPrescriptions?.length || 0).toLocaleString()} 
-          change="This period" 
-          icon={Pill} 
+        <StatCard
+          title="Dispensed Today"
+          value={prescriptions.filter(p => p.status === 'Dispensed').length}
+          icon={FileText}
+          change="Completed prescriptions"
         />
-        <StatCard 
-          title="Ready to Dispense" 
-          value={pendingPrescriptions?.length?.toLocaleString() || "0"} 
-          change="In queue" 
-          icon={Pill} 
+        <StatCard
+          title="Low Stock Items"
+          value={5}
+          icon={AlertCircle}
+          change="Requires restocking"
+        />
+        <StatCard
+          title="Inventory Value"
+          value="$45,000"
+          icon={DollarSign}
+          change="Current stock value"
         />
       </div>
 
-      {pendingPrescriptions && pendingPrescriptions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Prescriptions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingPrescriptions.slice(0, 10).map((prescription: any) => (
-              <div key={prescription.Prescription_ID} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{prescription.Patient?.Name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {prescription.Medicine_Name} • {prescription.Dosage} • {prescription.Frequency}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{prescription.Quantity} units</Badge>
-                    <Button 
-                      size="sm"
-                      onClick={() => {
-                        api.chemists.dispensePrescription(prescription.Prescription_ID);
-                      }}
-                    >
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Prescriptions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4">Patient</th>
+                <th className="text-left py-3 px-4">Medicine</th>
+                <th className="text-left py-3 px-4">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {prescriptions.slice(0, 5).map((prescription) => (
+                <tr key={prescription.id} className="border-b border-border">
+                  <td className="py-3 px-4">Patient {prescription.patient_id.slice(0, 8)}</td>
+                  <td className="py-3 px-4">{prescription.medicine_name}</td>
+                  <td className="py-3 px-4">
+                    <Button size="sm" variant="outline">
                       Dispense
                     </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
 
-function AttendantDashboard() {
-  const { data: patients, isLoading: patientsLoading } = useQuery({
-    queryKey: ['patients'],
-    queryFn: () => api.patients.getAll(),
-  });
-
-  const { data: rooms } = useQuery({
-    queryKey: ['rooms', 'available'],
-    queryFn: () => api.rooms.getAvailable(),
-  });
-
-  const { data: accommodations } = useQuery({
-    queryKey: ['accommodations', 'active'],
-    queryFn: () => api.accommodations.getActive(),
-  });
-
-  if (patientsLoading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
-
-  const todayPatients = patients?.filter((p: any) => {
-    const today = new Date().toDateString();
-    return new Date(p.CreatedAt).toDateString() === today;
-  }) || [];
+// Attendant Dashboard Component
+export const AttendantDashboard = () => {
+  const { patients, rooms, accommodations } = useHospitalData();
 
   return (
     <motion.div
@@ -494,74 +415,69 @@ function AttendantDashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <StatCard 
-          title="Total Patients" 
-          value={patients?.length?.toLocaleString() || "0"} 
-          change={`${todayPatients.length} registered today`} 
-          icon={Users} 
+        <StatCard
+          title="Patients to Assist"
+          value={patients.length}
+          icon={Users}
+          change="Requiring attention"
         />
-        <StatCard 
-          title="Available Rooms" 
-          value={rooms?.length?.toLocaleString() || "0"} 
-          change="Ready for assignment" 
-          icon={BedDouble} 
+        <StatCard
+          title="Meals Pending"
+          value={accommodations.filter(a => a.status === 'Active').length}
+          icon={Calendar}
+          change="To be served"
         />
-        <StatCard 
-          title="Active Accommodations" 
-          value={accommodations?.length?.toLocaleString() || "0"} 
-          change="Currently occupied" 
-          icon={ClipboardList} 
+        <StatCard
+          title="Room Cleaning"
+          value={rooms.filter((r) => r.status === "Available").length}
+          icon={Bed}
+          change="Tasks pending"
         />
       </div>
 
-      {todayPatients.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's New Patients</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {todayPatients.slice(0, 5).map((patient: any) => (
-              <div key={patient.Patient_ID} className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <p className="font-medium">{patient.Name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {patient.Patient_Type} • {patient.Gender} • {patient.Phone || 'No phone'}
-                  </p>
-                </div>
-                <Badge variant={patient.Status === 'Emergency' ? 'destructive' : 'default'}>
-                  {patient.Status}
-                </Badge>
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <p className="font-medium">Meal Distribution</p>
+                <p className="text-sm text-muted-foreground">Ward A - Breakfast</p>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              <Button size="sm" variant="outline">
+                Mark Complete
+              </Button>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <p className="font-medium">Room Cleaning</p>
+                <p className="text-sm text-muted-foreground">Rooms 101-110</p>
+              </div>
+              <Button size="sm" variant="outline">
+                Mark Complete
+              </Button>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <p className="font-medium">Linen Change</p>
+                <p className="text-sm text-muted-foreground">ICU Wing</p>
+              </div>
+              <Button size="sm" variant="outline">
+                Mark Complete
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
 
-function LabTechnicianDashboard() {
-  const { data: pendingTests, isLoading } = useQuery({
-    queryKey: ['lab-reports', 'pending'],
-    queryFn: () => api.labReports.getPending(),
-    refetchInterval: 30000,
-  });
-
-  useEffect(() => {
-    const socket = socketService.connect();
-    socketService.joinRoom('lab:all');
-    return () => {
-      socketService.leaveRoom('lab:all');
-    };
-  }, []);
-
-  if (isLoading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
-
-  const urgentTests = pendingTests?.filter((test: any) => 
-    test.Category === 'Blood' || test.Status === 'In Progress'
-  ) || [];
+// Lab Technician Dashboard Component
+export const LabTechnicianDashboard = () => {
+  const { labReports, patients } = useHospitalData();
 
   return (
     <motion.div
@@ -572,102 +488,72 @@ function LabTechnicianDashboard() {
     >
       <div>
         <h1 className="text-3xl font-bold text-foreground">Lab Technician Dashboard</h1>
-        <p className="text-muted-foreground">Laboratory tests and results</p>
+        <p className="text-muted-foreground">Laboratory tests and reports</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <StatCard 
-          title="Pending Tests" 
-          value={pendingTests?.length?.toLocaleString() || "0"} 
-          change="Awaiting completion" 
-          icon={FlaskConical} 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Pending Tests"
+          value={labReports.filter(l => l.status === 'Pending').length}
+          icon={FileText}
+          change="To be processed"
         />
-        <StatCard 
-          title="Urgent Tests" 
-          value={urgentTests.length.toLocaleString()} 
-          change="High priority" 
-          icon={AlertCircle} 
+        <StatCard
+          title="In Progress"
+          value={labReports.filter(l => l.status === 'In Progress').length}
+          icon={Activity}
+          change="Currently testing"
         />
-        <StatCard 
-          title="Total Tests Today" 
-          value={(pendingTests?.length || 0).toLocaleString()} 
-          change="In queue" 
-          icon={ClipboardList} 
+        <StatCard
+          title="Completed Today"
+          value={labReports.filter(l => l.status === 'Completed').length}
+          icon={Calendar}
+          change="Results submitted"
+        />
+        <StatCard
+          title="Critical Results"
+          value={patients.filter((p) => p.status === "Critical").length}
+          icon={AlertCircle}
+          change="Requires immediate attention"
         />
       </div>
 
-      {pendingTests && pendingTests.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Lab Tests</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingTests.slice(0, 10).map((test: any) => (
-              <div key={test.Lab_No} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{test.Patient?.Name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {test.Test_Name} • {test.Category}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={test.Status === 'In Progress' ? 'default' : 'outline'}>
-                      {test.Status}
-                    </Badge>
-                    {test.Status === 'Pending' && (
-                      <Button 
-                        size="sm"
-                        onClick={() => {
-                          api.labReports.update(test.Lab_No, { Status: 'Completed' });
-                        }}
-                      >
-                        Mark Complete
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Lab Tests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4">Patient</th>
+                <th className="text-left py-3 px-4">Test</th>
+                <th className="text-left py-3 px-4">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {labReports.slice(0, 5).map((report) => (
+                <tr key={report.id} className="border-b border-border">
+                  <td className="py-3 px-4">Patient {report.patient_id.slice(0, 8)}</td>
+                  <td className="py-3 px-4">{report.test_name}</td>
+                  <td className="py-3 px-4">
+                    <Button size="sm" variant="outline">
+                      Process
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
 
-function PatientDashboard() {
-  // For demo, using first patient - in production, use authenticated user's ID
-  const { data: patients } = useQuery({
-    queryKey: ['patients'],
-    queryFn: () => api.patients.getAll(),
-  });
-
-  const patientId = patients?.[0]?.Patient_ID;
-
-  const { data: patient, isLoading } = useQuery({
-    queryKey: ['patients', patientId],
-    queryFn: () => patientId ? api.patients.getById(patientId) : Promise.resolve(null),
-    enabled: !!patientId,
-  });
-
-  useEffect(() => {
-    if (patientId) {
-      const socket = socketService.connect();
-      socketService.joinRoom(`patient:${patientId}`);
-      return () => {
-        socketService.leaveRoom(`patient:${patientId}`);
-      };
-    }
-  }, [patientId]);
-
-  if (isLoading || !patient) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
-
-  const appointments = patient.Treatments || [];
-  const prescriptions = patient.Prescriptions || [];
-  const labResults = patient.LabReports || [];
+// Patient Dashboard Component
+export const PatientDashboard = () => {
+  const { treatments, bills, prescriptions, labReports } = useHospitalData();
 
   return (
     <motion.div
@@ -677,56 +563,90 @@ function PatientDashboard() {
       className="space-y-8"
     >
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Patient Portal</h1>
-        <p className="text-muted-foreground">Your health information and appointments</p>
+        <h1 className="text-3xl font-bold text-foreground">Patient Dashboard</h1>
+        <p className="text-muted-foreground">Your medical records and appointments</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <StatCard 
-          title="Treatment History" 
-          value={appointments.length.toLocaleString()} 
-          change="Total treatments" 
-          icon={Calendar} 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Appointments"
+          value={treatments.length}
+          icon={Calendar}
+          change="Total appointments"
         />
-        <StatCard 
-          title="Active Prescriptions" 
-          value={prescriptions.filter((p: any) => p.Status !== 'Completed').length.toLocaleString()} 
-          change="Medications" 
-          icon={Pill} 
+        <StatCard
+          title="Prescriptions"
+          value={prescriptions.length}
+          icon={Pill}
+          change="Active medications"
         />
-        <StatCard 
-          title="Lab Results" 
-          value={labResults.length.toLocaleString()} 
-          change="Test reports available" 
-          icon={FlaskConical} 
+        <StatCard
+          title="Lab Reports"
+          value={labReports.length}
+          icon={FileText}
+          change="Test results"
+        />
+        <StatCard
+          title="Pending Bills"
+          value={bills.filter(b => b.status === 'Pending').length}
+          icon={DollarSign}
+          change="Payment required"
         />
       </div>
 
-      {appointments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Treatments</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {appointments.slice(0, 5).map((treatment: any) => (
-              <div key={treatment.Treatment_ID} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Lab Reports</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {labReports.length > 0 ? (
+            <div className="space-y-3">
+              {labReports.slice(0, 5).map((report) => (
+                <div key={report.id} className="flex items-center justify-between p-3 rounded-lg border">
                   <div>
-                    <p className="font-semibold">{treatment.Doctor?.Name}</p>
-                    <p className="text-sm text-muted-foreground">{treatment.Diagnosis || 'No diagnosis recorded'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(treatment.Treatment_Date).toLocaleDateString()}
-                    </p>
+                    <p className="font-medium">{report.test_name}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(report.date).toLocaleDateString()}</p>
                   </div>
-                  <Badge variant={treatment.Status === 'Active' ? 'default' : 'secondary'}>
-                    {treatment.Status}
-                  </Badge>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      report.status === "Completed"
+                        ? "bg-green-500/20 text-green-500"
+                        : "bg-yellow-500/20 text-yellow-500"
+                    }`}
+                  >
+                    {report.status}
+                  </span>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No lab reports available</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Bills</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {bills.filter(b => b.status === 'Pending').length > 0 ? (
+            <div className="space-y-3">
+              {bills.filter(b => b.status === 'Pending').slice(0, 5).map((bill) => (
+                <div key={bill.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="font-medium">Bill #{bill.id.slice(0, 8)}</p>
+                    <p className="text-sm text-muted-foreground">${Number(bill.amount).toLocaleString()}</p>
+                  </div>
+                  <Button size="sm">Pay Now</Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No pending bills</p>
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
-}
+};
