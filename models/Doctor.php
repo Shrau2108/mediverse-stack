@@ -6,7 +6,9 @@ use PDO;
 
 class Doctor
 {
-    public function __construct(private readonly PDO $db = new \PDO('sqlite::memory:'))
+    private readonly PDO $db;
+
+    public function __construct()
     {
         $this->db = Database::connection();
     }
